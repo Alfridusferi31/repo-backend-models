@@ -5,13 +5,20 @@
 // module.exports = loadModel;
 
 const tf = require("@tensorflow/tfjs-node");
-require("dotenv").config();
 
 async function loadModel() {
-  const modelUrl = process.env.MODEL_URL;
-  const model = await tf.loadLayersModel(modelUrl);
-  console.log("Model loaded successfully from:", modelUrl);
-  return model;
+  try {
+    // Muat model dari URL
+    const model = await tf.loadLayersModel(
+      "https://storage.googleapis.com/training-bucket-models/model-in-prod/model.json"
+    );
+    console.log("Model loaded successfully!");
+
+    // Lakukan inferensi atau langkah lainnya dengan model
+    // Contoh: model.predict(input);
+  } catch (err) {
+    console.error("Error loading model:", err);
+  }
 }
 
 module.exports = loadModel;
