@@ -1,20 +1,32 @@
 const tf = require("@tensorflow/tfjs-node");
 
-const inferenceService = async (file) => {
-  const model = tf.loadGraphModel(process.env.MODEL_URL);
+async function predict(image) {
+  try {
+    // Preprocess the image for the model
+    const tensor = tf.node.decodeImage(image); // Decode the image file into a tensor
+    const resizedImage = tf.image.resizeBilinear(tensor, [224, 224]); // Resize to model's input size
+    const normalizedImage = resizedImage.div(tf.scalar(255)); // Normalize image (if needed)
 
-  // Preprocess the image
-  const imageBuffer = Buffer.from(file._data);
-  const decodedImage = tf.node.decodeImage(imageBuffer, 3);
-  const resizedImage = tf.image.resizeBilinear(decodedImage, [224, 224]);
-  const normalizedImage = resizedImage.div(tf.scalar(255)).expandDims();
+    // Make prediction
+    const prediction = await model.predict(normalizedImage.expandDims(0)); // Predict using the model
 
-  // Run inference
-  const prediction = model.predict(normalizedImage);
-  const predictionResult = prediction.dataSync()[0];
+    // Process the prediction (depending on your model output)
+    const result = {
+      id: "some-unique-id", // Use a unique identifier (e.g., UUID)
+      prediction: prediction.dataSync()[0] > 0.5 ? "Cancer" : "Non-cancer", // Example threshold logic
+      suggestion:
+        prediction.dataSync()[0] > 0.5
+          ? "Segera periksa ke dokter!"
+          : "Penyakit kanker tidak terdeteksi.",
+    };
 
-  // Return result based on threshold
-  return predictionResult > 0.5 ? "Cancer" : "Non-cancer";
+    return result;
+  } catch (error) {
+    console.error("Error during prediction:", error);
+    throw new Error("Prediction failed");
+  }
+}
+
+module.exports = {
+  predict,
 };
-
-module.exports = inferenceService;

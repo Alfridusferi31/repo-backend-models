@@ -1,60 +1,51 @@
-require("dotenv").config();
+require("dotenv").config(); // Load environment variables
 const Hapi = require("@hapi/hapi");
-const routes = require("./routes");
-const loadModel = require("../services/loadModel");
-const InputError = require("../exceptions/InputError");
+const routes = require("./routes"); // Load routes from routes.js
+const loadModel = require("../services/loadModel"); // Load model from services
+const InputError = require("../exceptions/InputError"); // InputError class for custom errors
 
 (async () => {
   try {
-    // Server configuration
+    // Initialize the server with basic configurations
     const server = Hapi.server({
       port: process.env.PORT || 3000,
       host: "0.0.0.0",
       routes: {
         cors: {
-          origin: ["*"], // Allow all origins
-        },
-        payload: {
-          maxBytes: 1000000, // Payload size limit: 1MB
+          origin: ["*"], // Allow all origins for now (consider restrictions in production)
         },
       },
     });
 
-    // Load TensorFlow model
+    // Load the model asynchronously
     const model = await loadModel();
-    server.app.model = model;
+    server.app.model = model; // Attach model to server for access in routes
 
-    // Register routes
+    // Register all routes from routes.js
     server.route(routes);
 
-    // Global error handling
-    server.ext("onPreResponse", (request, h) => {
+    // Custom error handling
+    server.ext("onPreResponse", function (request, h) {
       const response = request.response;
 
-      // Handle InputError
+      // Handle custom InputError
       if (response instanceof InputError) {
+        return h
+          .response({
+            status: "fail",
+            message: `${response.message} Silakan gunakan foto lain.`,
+          })
+          .code(response.statusCode);
+      }
+
+      // Handle Boom errors
+      if (response.isBoom) {
         return h
           .response({
             status: "fail",
             message: response.message,
           })
-          .code(response.statusCode);
-      }
-
-      // Handle Payload Too Large (413) or other Boom errors
-      if (response.isBoom) {
-        const statusCode = response.output.statusCode;
-        const message =
-          statusCode === 413
-            ? "Payload content length greater than maximum allowed: 1000000"
-            : response.message;
-
-        return h
-          .response({
-            status: "fail",
-            message,
-          })
-          .code(statusCode);
+          .code(response.output.statusCode);
       }
 
       return h.continue;
@@ -62,9 +53,9 @@ const InputError = require("../exceptions/InputError");
 
     // Start server
     await server.start();
-    console.log(`Server running at: ${server.info.uri}`);
+    console.log(`Server started at: ${server.info.uri}`);
   } catch (error) {
-    console.error("Failed to start server:", error);
-    process.exit(1);
+    console.error("Error starting server:", error);
+    process.exit(1); // Exit with non-zero code to indicate failure
   }
 })();
