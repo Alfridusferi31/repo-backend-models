@@ -1,50 +1,20 @@
-const tf = require("@tensorflow/tfjs-node");
-const InputError = require("../exceptions/InputError");
+const { loadModel } = require("./loadModel");
 
-async function predictClassification(model, image) {
+// Fungsi untuk melakukan inferensi menggunakan model yang diunduh
+async function inference(inputData) {
   try {
-    const tensor = tf.node
-      .decodeJpeg(image)
-      .resizeNearestNeighbor([224, 224])
-      .expandDims()
-      .toFloat();
+    // Memuat model dari file lokal atau dari hasil loadModel()
+    const model = await loadModel();
 
-    const classes = [
-      "Melanocytic nevus",
-      "Squamous cell carcinoma",
-      "Vascular lesion",
-    ];
+    // Lakukan inferensi menggunakan model dan data input
+    // Misalnya dengan menjalankan model terhadap inputData (tergantung implementasi model Anda)
+    const result = model.predict(inputData); // Ini hanya contoh, sesuaikan dengan cara model bekerja
 
-    const prediction = model.predict(tensor);
-    const score = await prediction.data();
-    const confidenceScore = Math.max(...score) * 100;
-
-    const classResult = tf.argMax(prediction, 1).dataSync()[0];
-    const label = classes[classResult];
-
-    let explanation, suggestion;
-
-    if (label === "Melanocytic nevus") {
-      explanation =
-        "Melanocytic nevus adalah kondisi di mana permukaan kulit memiliki bercak warna yang berasal dari sel-sel melanosit.";
-      suggestion =
-        "Segera konsultasi dengan dokter terdekat jika ukuran semakin membesar.";
-    } else if (label === "Squamous cell carcinoma") {
-      explanation =
-        "Squamous cell carcinoma adalah jenis kanker kulit yang umum dijumpai, sering tumbuh pada bagian tubuh yang sering terkena sinar UV.";
-      suggestion =
-        "Segera konsultasi dengan dokter terdekat untuk meminimalisasi penyebaran kanker.";
-    } else if (label === "Vascular lesion") {
-      explanation =
-        "Vascular lesion adalah kanker atau tumor pada bagian kepala dan leher.";
-      suggestion =
-        "Segera konsultasi dengan dokter terdekat untuk mengetahui tingkat bahaya penyakit.";
-    }
-
-    return { confidenceScore, label, explanation, suggestion };
+    return result;
   } catch (error) {
-    throw new InputError(`Terjadi kesalahan input: ${error.message}`);
+    console.error("Gagal melakukan inferensi:", error);
+    throw error;
   }
 }
 
-module.exports = predictClassification;
+module.exports = { inference };
