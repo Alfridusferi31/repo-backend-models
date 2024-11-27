@@ -1,75 +1,49 @@
-require("dotenv").config(); // Memuat variabel lingkungan
+require("dotenv").config();
 const Hapi = require("@hapi/hapi");
 const routes = require("../server/routes");
 const loadModel = require("../services/loadModel");
 const InputError = require("../exceptions/InputError");
 
 (async () => {
-  try {
-    // Konfigurasi server
-    const server = Hapi.server({
-      port: process.env.PORT || 3000,
-      host: "0.0.0.0",
-      routes: {
-        cors: {
-          origin: ["*"], // Mengizinkan semua origin (sesuaikan di production)
-        },
+  const server = Hapi.server({
+    port: process.env.PORT || 3000,
+    host: "0.0.0.0",
+    routes: {
+      cors: {
+        origin: ["*"],
       },
-    });
+    },
+  });
 
-    // Memuat model machine learning
-    const model = await loadModel();
-    server.app.model = model; // Menyimpan model untuk digunakan di route handler
+  const model = await loadModel();
+  server.app.model = model;
 
-    // Mendaftarkan route
-    server.route(routes);
+  server.route(routes);
 
-    // Middleware untuk menangani error sebelum respons dikirim
-    server.ext("onPreResponse", (request, h) => {
-      const response = request.response; // Mendapatkan respons dari request
+  server.ext("onPreResponse", function (request, h) {
+    const response = request.response;
 
-      // Penanganan khusus untuk InputError
-      if (response instanceof InputError) {
-        return h
-          .response({
-            status: "fail",
-            message:
-              response.message ||
-              "Terjadi kesalahan dalam melakukan prediksi. Silakan gunakan foto lain.",
-          })
-          .code(response.statusCode || 400); // Default status 400 jika tidak didefinisikan
-      }
+    if (response instanceof InputError) {
+      const newResponse = h.response({
+        status: "fail",
+        message: `${response.message}`,
+      });
+      newResponse.code(response.statusCode);
+      return newResponse;
+    }
 
-      // Penanganan untuk error Boom (misalnya payload terlalu besar)
-      if (response.isBoom) {
-        const { output } = response; // Mengambil output error
-        const errorType = output.payload.error; // Jenis error
+    if (response.isBoom) {
+      const newResponse = h.response({
+        status: "fail",
+        message: response.message,
+      });
+      newResponse.code(response.output.statusCode);
+      return newResponse;
+    }
 
-        let customMessage = "Terjadi kesalahan pada server."; // Pesan default
-        if (errorType === "Payload Too Large") {
-          customMessage =
-            "Ukuran payload melebihi batas maksimum yang diizinkan.";
-        }
+    return h.continue;
+  });
 
-        const newResponse = h.response({
-          status: "fail",
-          message: customMessage,
-        });
-
-        newResponse.code(output.statusCode); // Menggunakan status code dari error
-        return newResponse;
-      }
-
-      // Jika tidak ada error, lanjutkan respons
-      return h.continue;
-    });
-
-    // Menjalankan server
-    await server.start();
-    console.log(`Server started at: ${server.info.uri}`);
-  } catch (error) {
-    // Menangani error saat startup
-    console.error("Error starting server:", error);
-    process.exit(1); // Keluar dengan kode non-zero untuk menunjukkan kegagalan
-  }
+  await server.start();
+  console.log(`Server start at: ${server.info.uri}`);
 })();

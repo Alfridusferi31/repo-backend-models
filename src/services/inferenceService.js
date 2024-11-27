@@ -1,20 +1,33 @@
-const { loadModel } = require("./loadModel");
+const tf = require("@tensorflow/tfjs-node");
+const InputError = require("../exceptions/InputError");
 
-// Fungsi untuk melakukan inferensi menggunakan model yang diunduh
-async function inference(inputData) {
+async function predictClassification(model, image) {
   try {
-    // Memuat model dari file lokal atau dari hasil loadModel()
-    const model = await loadModel();
+    const tensor = tf.node
+      .decodeJpeg(image)
+      .resizeNearestNeighbor([224, 224])
+      .expandDims()
+      .toFloat();
 
-    // Lakukan inferensi menggunakan model dan data input
-    // Misalnya dengan menjalankan model terhadap inputData (tergantung implementasi model Anda)
-    const result = model.predict(inputData); // Ini hanya contoh, sesuaikan dengan cara model bekerja
+    const prediction = model.predict(tensor);
+    const score = await prediction.data();
+    const confidenceScore = Math.max(...score) * 100;
 
-    return result;
+    const label = confidenceScore <= 50 ? "Non-cancer" : "Cancer";
+    let suggestion;
+
+    if (label === "Cancer") {
+      suggestion = "Segera periksa ke dokter!";
+    }
+
+    if (label === "Non-cancer") {
+      suggestion = "Anda sehat!";
+    }
+
+    return { label, suggestion };
   } catch (error) {
-    console.error("Gagal melakukan inferensi:", error);
-    throw error;
+    throw new InputError("Terjadi kesalahan dalam melakukan prediksi");
   }
 }
 
-module.exports = { inference };
+module.exports = predictClassification;
