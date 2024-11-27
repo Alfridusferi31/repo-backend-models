@@ -1,34 +1,29 @@
-require("dotenv").config(); // Load environment variables
+require("dotenv").config();
 const Hapi = require("@hapi/hapi");
-const routes = require("./routes"); // Load routes from routes.js
-const loadModel = require("../services/loadModel"); // Load model from services
-const InputError = require("../exceptions/InputError"); // InputError class for custom errors
+const routes = require("../server/routes");
+const loadModel = require("../services/loadModel");
+const InputError = require("../exceptions/InputError");
 
 (async () => {
   try {
-    // Initialize the server with basic configurations
     const server = Hapi.server({
       port: process.env.PORT || 3000,
       host: "0.0.0.0",
       routes: {
         cors: {
-          origin: ["*"], // Allow all origins for now (consider restrictions in production)
+          origin: ["*"],
         },
       },
     });
 
-    // Load the model asynchronously
     const model = await loadModel();
-    server.app.model = model; // Attach model to server for access in routes
+    server.app.model = model;
 
-    // Register all routes from routes.js
     server.route(routes);
 
-    // Custom error handling
-    server.ext("onPreResponse", function (request, h) {
+    server.ext("onPreResponse", (request, h) => {
       const response = request.response;
 
-      // Handle custom InputError
       if (response instanceof InputError) {
         return h
           .response({
@@ -38,7 +33,6 @@ const InputError = require("../exceptions/InputError"); // InputError class for 
           .code(response.statusCode);
       }
 
-      // Handle Boom errors
       if (response.isBoom) {
         return h
           .response({
@@ -51,11 +45,10 @@ const InputError = require("../exceptions/InputError"); // InputError class for 
       return h.continue;
     });
 
-    // Start server
     await server.start();
     console.log(`Server started at: ${server.info.uri}`);
   } catch (error) {
     console.error("Error starting server:", error);
-    process.exit(1); // Exit with non-zero code to indicate failure
+    process.exit(1);
   }
 })();

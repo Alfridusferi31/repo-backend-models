@@ -1,14 +1,10 @@
-const tf = require("@tensorflow/tfjs-node"); // TensorFlow.js for Node.js
+const tf = require("@tensorflow/tfjs-node");
 
 async function loadModel() {
-  try {
-    // Use the environment variable for the model URL
-    const model = await tf.loadGraphModel(process.env.MODEL_URL);
-    return model;
-  } catch (error) {
-    console.error("Error loading model:", error);
-    throw new Error("Model failed to load");
-  }
+  const modelPath =
+    "https://storage.googleapis.com/model-ml-server/model-in-prod/model.json"; // Path model
+  const model = await tf.loadGraphModel(modelPath);
+  return model;
 }
 
 module.exports = loadModel;

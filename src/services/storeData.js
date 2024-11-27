@@ -1,9 +1,10 @@
 const { Firestore } = require("@google-cloud/firestore");
-const firestore = new Firestore();
 
-const storeData = async (data) => {
-  const collection = firestore.collection("predictions");
-  await collection.doc(data.id).set(data);
-};
+const db = new Firestore();
+
+async function storeData(id, data) {
+  const docRef = db.collection("predictions").doc(id);
+  await docRef.set(data);
+}
 
 module.exports = storeData;

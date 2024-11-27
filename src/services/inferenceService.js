@@ -1,32 +1,50 @@
 const tf = require("@tensorflow/tfjs-node");
+const InputError = require("../exceptions/InputError");
 
-async function predict(image) {
+async function predictClassification(model, image) {
   try {
-    // Preprocess the image for the model
-    const tensor = tf.node.decodeImage(image); // Decode the image file into a tensor
-    const resizedImage = tf.image.resizeBilinear(tensor, [224, 224]); // Resize to model's input size
-    const normalizedImage = resizedImage.div(tf.scalar(255)); // Normalize image (if needed)
+    const tensor = tf.node
+      .decodeJpeg(image)
+      .resizeNearestNeighbor([224, 224])
+      .expandDims()
+      .toFloat();
 
-    // Make prediction
-    const prediction = await model.predict(normalizedImage.expandDims(0)); // Predict using the model
+    const classes = [
+      "Melanocytic nevus",
+      "Squamous cell carcinoma",
+      "Vascular lesion",
+    ];
 
-    // Process the prediction (depending on your model output)
-    const result = {
-      id: "some-unique-id", // Use a unique identifier (e.g., UUID)
-      prediction: prediction.dataSync()[0] > 0.5 ? "Cancer" : "Non-cancer", // Example threshold logic
-      suggestion:
-        prediction.dataSync()[0] > 0.5
-          ? "Segera periksa ke dokter!"
-          : "Penyakit kanker tidak terdeteksi.",
-    };
+    const prediction = model.predict(tensor);
+    const score = await prediction.data();
+    const confidenceScore = Math.max(...score) * 100;
 
-    return result;
+    const classResult = tf.argMax(prediction, 1).dataSync()[0];
+    const label = classes[classResult];
+
+    let explanation, suggestion;
+
+    if (label === "Melanocytic nevus") {
+      explanation =
+        "Melanocytic nevus adalah kondisi di mana permukaan kulit memiliki bercak warna yang berasal dari sel-sel melanosit.";
+      suggestion =
+        "Segera konsultasi dengan dokter terdekat jika ukuran semakin membesar.";
+    } else if (label === "Squamous cell carcinoma") {
+      explanation =
+        "Squamous cell carcinoma adalah jenis kanker kulit yang umum dijumpai, sering tumbuh pada bagian tubuh yang sering terkena sinar UV.";
+      suggestion =
+        "Segera konsultasi dengan dokter terdekat untuk meminimalisasi penyebaran kanker.";
+    } else if (label === "Vascular lesion") {
+      explanation =
+        "Vascular lesion adalah kanker atau tumor pada bagian kepala dan leher.";
+      suggestion =
+        "Segera konsultasi dengan dokter terdekat untuk mengetahui tingkat bahaya penyakit.";
+    }
+
+    return { confidenceScore, label, explanation, suggestion };
   } catch (error) {
-    console.error("Error during prediction:", error);
-    throw new Error("Prediction failed");
+    throw new InputError(`Terjadi kesalahan input: ${error.message}`);
   }
 }
 
-module.exports = {
-  predict,
-};
+module.exports = predictClassification;
