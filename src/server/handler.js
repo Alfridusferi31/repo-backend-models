@@ -1,4 +1,5 @@
-const predictClassification = require("../services/InferenceService");
+const predictClassification = require("../services/inferenceService");
+
 const crypto = require("crypto");
 const storeData = require("../services/storeData");
 
@@ -34,7 +35,7 @@ async function predictHistories(request, h) {
   const { model } = request.server.app;
   const { Firestore } = require("@google-cloud/firestore");
   const db = new Firestore({
-    projectId: "submissionmlgcauliafadjri",
+    projectId: "submissionmlgc-alfridus-feri",
   });
   const predictCollection = db.collection("predictions");
   const snapshot = await predictCollection.get();
