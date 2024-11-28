@@ -1,13 +1,14 @@
-const predictClassification = require("../services/inferenceService");
+const predictClassification = require("../services/InferenceService");
 const crypto = require("crypto");
 const storeData = require("../services/storeData");
-const getAllData = require("../services/getAllData");
 
 async function postPredictHandler(request, h) {
   const { image } = request.payload;
   const { model } = request.server.app;
-
-  const { label, suggestion } = await predictClassification(model, image);
+  const { confidenceScore, label, suggestion } = await predictClassification(
+    model,
+    image
+  );
   const id = crypto.randomUUID();
   const createdAt = new Date().toISOString();
 
@@ -29,29 +30,30 @@ async function postPredictHandler(request, h) {
   return response;
 }
 
-async function postPredictHistoriesHandler(request, h) {
-  const allData = await getAllData();
-
-  const formatAllData = [];
-  allData.forEach((doc) => {
-    const data = doc.data();
-    formatAllData.push({
+async function predictHistories(request, h) {
+  const { model } = request.server.app;
+  const { Firestore } = require("@google-cloud/firestore");
+  const db = new Firestore({
+    projectId: "submissionmlgcauliafadjri",
+  });
+  const predictCollection = db.collection("predictions");
+  const snapshot = await predictCollection.get();
+  const result = [];
+  snapshot.forEach((doc) => {
+    result.push({
       id: doc.id,
       history: {
-        result: data.result,
-        createdAt: data.createdAt,
-        suggestion: data.suggestion,
-        id: doc.id,
+        result: doc.data().result,
+        createdAt: doc.data().createdAt,
+        suggestion: doc.data().suggestion,
+        id: doc.data().id,
       },
     });
   });
-
-  const response = h.response({
+  return h.response({
     status: "success",
-    data: formatAllData,
+    data: result,
   });
-  response.code(200);
-  return response;
 }
 
-module.exports = { postPredictHandler, postPredictHistoriesHandler };
+module.exports = { postPredictHandler, predictHistories };
